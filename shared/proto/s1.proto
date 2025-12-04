@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package user;
+
+service AuthService {
+  rpc Signup(SignupRequest) returns (AuthResponse);
+  rpc justcheck(SignupRequest) returns (AuthResponse);
+  rpc Login(LoginRequest) returns (AuthResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+  rpc Logout(LogoutRequest) returns (GenericResponse);
+  rpc RequestPasswordReset(ResetRequest) returns (ResetResponse);
+  rpc ResetPassword(ResetPasswordRequest) returns (AuthResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (GenericResponse);
+}
+
+service UserService {
+  rpc GetProfile(GetUserRequest) returns (UserResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UserResponse);
+  rpc DeleteAccount(DeleteRequest) returns (GenericResponse);
+}
+
+message SignupRequest { string email = 1; string password = 2; string name = 3; }
+message LoginRequest { string email = 1; string password = 2; }
+message RefreshTokenRequest { string refreshToken = 1; }
+message LogoutRequest { string token = 1; }
+message ChangePasswordRequest { string userId = 1; string oldPassword = 2; string newPassword = 3; }
+
+message ResetRequest { string email = 1; }
+message ResetPasswordRequest { string resetToken = 1; string newPassword = 2; }
+
+message GenericResponse { bool ok = 1; string msg = 2; }
+
+message AuthResponse { bool ok = 1; string token = 2; string refreshToken = 3; string userData = 4; string sessionCookie = 5;}
+
+message GetUserRequest { string userId = 1; }
+message UpdateProfileRequest { string userId = 1; string name = 2; string email = 3; }
+message DeleteRequest { string userId = 1; }
+
+message UserResponse { bool ok = 1; string userId = 2; string email = 3; string name = 4; string msg = 5; }
+message ResetResponse {}

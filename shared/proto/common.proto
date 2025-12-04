@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package common.v1;
+
+message ID{
+    oneof id{
+        string Uid = 1;
+        string Sid = 2;
+    }
+}
+
+enum Status {
+  STATUS_UNSPECIFIED = 0;  // Always start with 0
+  STATUS_ACTIVE = 1;
+  STATUS_INACTIVE = 2;
+  STATUS_PENDING = 3;
+}

@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package service.s2.v1;
+
+import "google/protobuf/timestamp.proto";
+import "common.proto";
+
+message ChatMessage {
+  string message = 1;
+  google.protobuf.Timestamp createdAt = 2;
+  common.v1.ID id = 3;
+}
+
+service s2Service {
+  rpc chat(stream ChatMessage) returns (stream ChatMessage);
+}
