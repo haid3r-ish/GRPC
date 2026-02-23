@@ -1,3 +1,24 @@
-node_modules
+# node modules
+node_modules/
+services/*/node_modules/
+
+# env files
 .env
-package-lock.json
+.env.*
+
+# IDE / OS
+.vscode/
+.DS_Store
+.idea/
+
+# logs / builds
+npm-debug.log*
+*.log
+logs/
+dist/
+build/
+coverage/
+*.tgz
+
+# service-specific
+services/s2/
