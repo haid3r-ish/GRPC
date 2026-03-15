@@ -1,6 +1,7 @@
 {
-  "name": "s1",
+  "name": "s2",
   "version": "1.0.0",
+  "description": "",
   "main": "app.js",
   "_moduleAliases": {
     "@root": "./",
@@ -8,7 +9,6 @@
     "@middleware": "./src/middleware",
     "@config": "./src/config",
     "@utils": "./src/utils",
-    "@model": "./src/model",
     "@shared": "./../../shared",
     "@s2": "./../s2",
     "@s3": "./../s3"
@@ -19,22 +19,17 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "Authentication Service",
+  "type": "commonjs",
   "dependencies": {
-    "@grpc/grpc-js": "^1.14.0",
+    "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
-    "axios": "^1.12.2",
-    "bcrypt": "^6.0.0",
-    "chalk": "^5.6.2",
-    "clean-stack": "^6.0.0",
+    "bottleneck": "^2.19.5",
     "cors": "^2.8.6",
-    "jsonwebtoken": "^9.0.2",
-    "lodash": "^4.17.21",
-    "module-alias": "^2.2.3",
-    "mongoose": "^8.19.1",
-    "pino": "^10.0.0",
-    "pino-pretty": "^13.1.2",
-    "stripe": "^20.3.1",
-    "uuid": "^13.0.0"
+    "fs-extra": "^11.3.4",
+    "module-alias": "^2.3.4",
+    "mongoose": "^9.2.4",
+    "pdf2pic": "^3.2.0",
+    "pino": "^10.3.1",
+    "pino-pretty": "^13.1.3"
   }
 }

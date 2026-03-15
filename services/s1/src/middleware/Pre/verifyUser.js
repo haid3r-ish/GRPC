@@ -1,17 +1,20 @@
 // MIDDLEWARE LIKE gRPC FUNCTIONS
+require("module-alias/register")
+const grpc = require("@grpc/grpc-js")
+
+const {logger} = require("@utils/require")
+const {CatchAsync, AppError, diverge} = require("@shared/utils/handler")
+const {verifyToken} = require("@utils/handleJwt")
 
 
-const {CatchAsync, logger, AppError} = require("@utils/require")
-const verifyToken = require("@utils/handleJwt")
 
 // Authentication Validation / verify User Middleware
 const verifyUser = CatchAsync(async (call,callback) => {
-    if(!call.request) throw new AppError("Invalid data")
+    if(!call.request) throw new AppError("Invalid data", grpc.status.INVALID_ARGUMENT)
     let {sessionCookie} = call.request
-
-    ({userData, sessionCookie} = verifyToken(sessionCookie))
-    
-    callback(null, {ok: true, userData, sessionCookie})
+    let userData = null;
+    ({userData, sessionCookie} = await verifyToken(sessionCookie))
+    callback(null, {userData, sessionCookie})
 })
 
 module.exports = {

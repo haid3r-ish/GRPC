@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package ocr;
+
+import "google/protobuf/empty.proto";
+
+service OcrService {
+  rpc CountFiles (google.protobuf.Empty) returns (CountResponse);
+  rpc AnalyzeFile (AnalyzeRequest) returns (AnalyzeResponse);
+  rpc AnalyzeSubscription (AnalyzeSubscriptionRequest) returns (AnalyzeSubscriptionResponse);
+  rpc ProcessFile (ProcessRequest) returns (ProcessResponse);
+}
+
+message FileItem {
+  string path = 1;
+  string mimetype = 2;
+}
+
+message CountResponse {
+  bool halt = 1; 
+}
+
+message AnalyzeRequest { 
+  repeated FileItem files = 1; 
+}
+
+message AnalyzeResponse { 
+  int32 totalPages = 1;
+  repeated FileItem processedFiles = 2;
+}
+
+message ProcessRequest { 
+  string userId = 1;           // Added: So S2 can link the DB record
+  repeated FileItem files = 2; 
+}
+
+message ProcessResponse { 
+  string batchId = 1;          // Added: S2 returns the MongoDB _id
+}
+
+message AnalyzeSubscriptionRequest {
+  string userId = 1;
+  int32 cost = 2;
+}
+
+message AnalyzeSubscriptionResponse {
+  bool success = 1;
+  int32 remainingCredits = 2;
+}

@@ -3,13 +3,11 @@ const cleanStack = require("clean-stack")
 const color = require("@shared/utils/color")
 
 //// ERROR HANDLING ////
-class AppError extends Error{
-    constructor(message){
-        super(message)
-        this.message = message
+class AppError extends Error {
+    constructor(message, statusCode) {
+        super(message);
+        this.statusCode = statusCode
         this.isOperational = true;
-        // Set the error name to the class name
-        this.name = this.constructor.name;
 
         if (Error.captureStackTrace) {
             Error.captureStackTrace(this, this.constructor);
@@ -18,16 +16,15 @@ class AppError extends Error{
 }
 
 //// CLEAN_STACK ////
-function cleanErrStack(error){
-    if(!error.stack) return error
+function cleanErrStack(stack){
+    if(!stack) return error
 
-    error.stack = cleanStack(error.stack, {
+    stack = cleanStack(stack, {
         pretty: true
     })
 
-    return error
+    return stack
 }
-
 
 function GER(err){
     // if(process.env.NODE_ENV === "dev"){
@@ -39,15 +36,19 @@ function GER(err){
     };
 }
 
-//// ASYNC WRAPPER ////
+//// GRPC ASYNC WRAPPER ////
 function CatchAsync(fn){
     return async (call, callback) => {
         try {
             await fn(call, callback);
         } catch (err) {
-            const grpcError = GER(err);
+            const serviceError = {
+                "code": err.statusCode || 500,
+                "details": err.message || "Internal Server Error",
+            }
+            // err.stack = cleanErrStack(err.stack)
             console.log(err)
-            callback(grpcError, null);
+            callback(serviceError, null);
         }
     };
 }
@@ -87,6 +88,26 @@ async function DBconnection({connect, connection}){
         .catch((err) => color.err(err))
 }
 
+/// OBJECT INTO STRING , GRPC ///
+function converge(data) {
+    if (data === undefined || data === null) return "";
+    return JSON.stringify(data);
+};
+
+/// STRING INTO OBJECT , GRPC ///
+function diverge(dataString) {
+    if (!dataString) return null; 
+    try {
+        return JSON.parse(dataString);
+    } catch (err) {{}
+        console.error("gRPC Parse Error:", err);
+        return null; 
+    }
+};
+
+function verifyNullish (...fields){
+    return fields.some((val) => val == null)
+}
 
 module.exports = {
     pinoInstance,
@@ -94,4 +115,7 @@ module.exports = {
     GER,
     CatchAsync,
     DBconnection,
+    converge,
+    diverge,
+    verifyNullish
 }

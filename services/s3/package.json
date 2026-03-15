@@ -1,7 +1,7 @@
 {
   "name": "s3",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,7 +11,7 @@
     "@route": "./src/routes",
     "@middleware": "./src/middleware",
     "@config": "./src/config",
-    "@utils": "./src/utils",
+    "@util": "./src/utils",
     "@shared": "./../../shared",
     "@s2": "./../s1",
     "@s3": "./../s3"
@@ -23,8 +23,15 @@
   "dependencies": {
     "@grpc/grpc-js": "^1.14.0",
     "@grpc/proto-loader": "^0.8.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
-    "module-alias": "^2.2.3"
+    "module-alias": "^2.2.3",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "pino": "^10.3.0",
+    "pino-http": "^11.0.0",
+    "pino-pretty": "^13.1.3"
   }
 }

@@ -1,0 +1,15 @@
+{
+  "folders": [
+    { "path": "services/s1" },
+    { "path": "services/s3" },
+    { "path": "services/s2" }
+  ],
+  "launch": {
+    "compounds": [
+      {
+        "name": "Debug All Servers",
+        "configurations": ["Run S1 (REST)", "Run gRPC Server", "Run S2 (gRPC)"]
+      }
+    ]
+  }
+}

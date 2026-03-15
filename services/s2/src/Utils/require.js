@@ -8,6 +8,9 @@ const SubscriptionSchema = require("@shared/utils/Model/subscription");
 module.exports = {
     // Prepared logger instance in shared
     logger: require("@shared/utils/handler").pinoInstance(require("pino"),require.resolve("@root")),
+    
+    /// MODELS ///
+    
     // User schema
     User: mongoose.model("User",UserSchema(mongoose)),
     // subscription schema

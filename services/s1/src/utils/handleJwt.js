@@ -2,10 +2,10 @@
 const jwt = require("jsonwebtoken")
 const {randomBytes} = require("crypto")
 const {promisify} = require("util")
+const grpc = require("@grpc/grpc-js")
 
-const {logger} = require("@utils/require")
-const {AppError} = require("@shared/utils/EventHandle")
-const User = require("@model/require")
+const {AppError} = require("@shared/utils/handler")
+const {User} = require("@utils/require")
 const path = require("path")
 
 // IN JWT, USED A HYBRID TECHNIQUE, IN WHICH LONG TERM AND SHORT TERM TOKEN ARE UTILIZED
@@ -19,7 +19,7 @@ async function createSessionCookie(userData, sessionToken) {
     
     const payload = {
         userData: {
-            id: userData._id,
+            id: userData.id,
             email: userData.email,
             name: userData.name,
         },
@@ -39,23 +39,17 @@ async function createSessionCookie(userData, sessionToken) {
 // 4. RETURN userData and sessionCookie
 async function verifyToken(sessionCookie){
     // 1
-    const decoded = jwt.verify(sessionCookie,process.env.JWT_SECRET)
-    if(!(decoded && decoded.userData)) throw new AppError("session is expired, login again")
+    const decoded = await promisify(jwt.verify)(sessionCookie, process.env.JWT_SECRET)
+    if(!(decoded && decoded.userData)) throw new AppError("session is expired, login again", grpc.status.UNAUTHENTICATED)
     // 2
-    if(decoded.sessionTime && String(decoded.sessionTime) < (Date.now() + process.env.JWT_SESSION_EXPIRY)) return {userData: decoded.userData, sessionToken: null}
+    if(decoded.sessionTime && Date.now() < (parseInt(decoded.sessionTime) + (60 * 1000))) return {userData: decoded.userData, sessionToken: null}
     // Session time is expired
-    const user = await User.findById(decoded?.userData.id).select("refreshToken")
-    if(!user) throw new AppError("user not found, login again")
-    else if(user.sessionToken !== decoded.sessionToken) throw new AppError("session verification failed, login again")
-    // 3 
-    user.sessionTime = Date.now()
-    await user.save()
-        .catch((error)=>{
-            throw new AppError(error)
-        })
+    const user = await User.findById(decoded?.userData.id).select("sessionToken email name")
+    if(!user) throw new AppError("user not found, login again", grpc.status.NOT_FOUND)
+    else if(user.sessionToken !== decoded.sessionToken) throw new AppError("session verification failed, login again", grpc.status.UNAUTHENTICATED);
     // 4
-    ({sessionCookie} = createSessionCookie({
-        id: user._id,
+    ({sessionCookie} = await createSessionCookie({
+        id: user.id,
         email: user.email,
         name: user.name
     }, decoded.sessionToken))

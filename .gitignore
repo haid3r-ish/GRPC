@@ -21,4 +21,4 @@ coverage/
 *.tgz
 
 # service-specific
-services/s2/
+# services/s2/
