@@ -19,7 +19,7 @@ const signup = CatchAsync(async (call, callback) => {
     const hashedPassword = await bcrypt.hash(password, 12);
     if(!hashedPassword) throw new AppError("Issue in hashing password", grpc.status.INTERNAL)
 
-    const user = await User.create({ email, name, password: hashedPassword }).select("name email _id");
+    const user = await User.create({ email, name, password: hashedPassword });
     if (!user) throw new AppError("Issue in creating User", grpc.status.INTERNAL);
         
     // D. Log Success (Structured)
@@ -42,9 +42,12 @@ const login = CatchAsync(async (call, callback) => {
     const { email, password } = call.request;
     if (verifyNullish(email, password)) throw new AppError("Provide valid data", grpc.status.INVALID_ARGUMENT);
 
-    const user = await User.findOne({ email }).select("name email _id sessionToken");
+    const user = await User.findOne({ email }).select("name email _id sessionToken +password");
     if (!user ) throw new AppError("Email or Password is incorrect", grpc.status.UNAUTHENTICATED);
 
+    // password verfication
+    const match = await user.correctPassword(password);
+    if (!match) throw new AppError("Email or Password is incorrect", grpc.status.UNAUTHENTICATED);
     // Session Logic
     let userData = { id: user._id.toString(), email: user.email, name: user.name };
     let sessionCookie = null;
@@ -117,7 +120,7 @@ const changePassword = CatchAsync(async (call, callback) => {
     const user = await User.findById(userId).select('+password');
     if (!user) throw new AppError("User not found", grpc.status.NOT_FOUND);
 
-    const match = await bcrypt.compare(oldPassword, user.password);
+    const match = await user.correctPassword(oldPassword);
     if (!match) throw new AppError("Old password Incorrect", grpc.status.INVALID_ARGUMENT);
 
     user.password = await bcrypt.hash(newPassword, 10);

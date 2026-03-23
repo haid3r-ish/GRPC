@@ -55,13 +55,22 @@ const TEST_USER = {
   // password: "password123",
   // name: "TEST USER",
   userId: "699d19910310f8859a8daa08",
-  cost: 4
+  files: [
+  {
+    path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\1773826342394-new.png",
+    mimetype: "image/png",
+  },
+  {
+    path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\1773826343641-814716.png",
+    mimetype: "image/png",
+  },
+]
 };
 
 (async () => {
   try {
     console.log("\n--- 1. Testing SIGNUP ---");
-    const test = await runRpc(ocr, "AnalyzeSubscription", TEST_USER);
+    const test = await runRpc(ocr, "ProcessFile", TEST_USER);
     console.log("✅ Test RPC Success:", test);
     process.exit(0)
     // const signupRes = await runRpc(authClient, "Signup", TEST_USER);
