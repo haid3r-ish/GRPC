@@ -10,6 +10,7 @@ service AuthService {
   rpc RequestPasswordReset(ResetRequest) returns (RequestResetResponse);
   rpc ResetPassword(ResetPasswordRequest) returns (ResetPasswordResponse);
   rpc ChangePassword(ChangePasswordRequest) returns (GenericResponse);
+  rpc googleOAuthCallback(GoogleAuthRequest) returns (GoogleAuthResponse);
 }
 
 service UserService {
@@ -35,6 +36,12 @@ message LoginRequest { string email = 1; string password = 2; }
 message verifyUserRequest { string sessionCookie = 1; }
 message LogoutRequest { string userId = 1; }
 message ChangePasswordRequest { string userId = 1; string oldPassword = 2; string newPassword = 3; }
+message GoogleAuthRequest {
+    string googleId = 1; 
+    string email = 2;
+    string name = 3;
+    string profilePicture = 4;
+}
 
 message ResetRequest { string email = 1; }
 message ResetPasswordRequest { string resetToken = 1; string newPassword = 2; }
@@ -52,6 +59,10 @@ message GenericResponse {
 message SignupResponse {
     string userData = 1;
     string sessionCookie = 2;
+}
+message GoogleAuthResponse {
+  string userData = 1;
+  string sessionCookie = 2;
 }
 
 message LoginResponse {

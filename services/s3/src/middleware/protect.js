@@ -1,5 +1,8 @@
 require("module-alias/register")
 
+const path = require("path");
+const fs = require("fs").promises;
+
 const { s1Auth } = require("@util/require");
 const { callClient } = require("@util/mwareUtil");
 const { AppError } = require("@shared/utils/Handler");
@@ -41,33 +44,45 @@ const protect = CatchAsync(async(req, res, next) => {
 const autoCleanup = (req, res, next) => {
     // We define the cleanup logic inside the middleware
     const cleanup = async () => {
-        // Remove the event listeners immediately so this function doesn't run twice
-        res.removeListener('finish', cleanup);
-        res.removeListener('close', cleanup);
-
         const filesToDelete = new Set(); // Use a Set to prevent trying to delete the same file twice
+        try {
+            // Remove the event listeners immediately so this function doesn't run twice
+            res.removeListener('finish', cleanup);
+            res.removeListener('close', cleanup);
+    
+            if (req.skipCleanup) return;
+    
+    
+            // 1. Gather original Multer files (if they haven't been deleted yet)
+            if (req.files && Array.isArray(req.files)) {
+                req.files.forEach(f => {
+                    if (f.path) {
+                        filesToDelete.add(path.join(__dirname, "../../", f.path)); 
+                    }
+                });
+            }
+    
+            // 2. Gather the generated PNGs/S2 files
+            if (req.grpcFiles && Array.isArray(req.grpcFiles)) {
+                req.grpcFiles.forEach(f => {
+                    if (f.path) {
+                        filesToDelete.add(path.join(f.path)); 
+                    }
+                });
+            }
 
-        // 1. Gather original Multer files (if they haven't been deleted yet)
-        if (req.files && Array.isArray(req.files)) {
-            req.files.forEach(f => {
-                if (f.path) filesToDelete.add(f.path);
-            });
-        }
-
-        // 2. Gather the generated PNGs/S2 files
-        if (req.grpcFiles && Array.isArray(req.grpcFiles)) {
-            req.grpcFiles.forEach(f => {
-                if (f.path) filesToDelete.add(f.path);
-            });
-        }
-
-        // 3. Nuke them from the hard drive silently
-        if (filesToDelete.size > 0) {
-            const deletePromises = Array.from(filesToDelete).map(filePath => 
-                fs.unlink(filePath).catch(() => {}) // Catch prevents crashes if the file was already deleted
-            );
+            // 3. Nuke them from the hard drive silently
+            if (filesToDelete.size > 0) {
+                const deletePromises = Array.from(filesToDelete).map(filePath => 
+                    fs.unlink(filePath).catch(() => {}) // Catch prevents crashes if the file was already deleted
+                );
+                
+                await Promise.all(deletePromises);
+            } 
+    
             
-            await Promise.all(deletePromises);
+        } catch (error) {
+            console.error("Error during cleanup:", error);   
         }
     };
 

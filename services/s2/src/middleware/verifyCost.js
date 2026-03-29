@@ -12,8 +12,7 @@ const analyzeSubscription = CatchAsync(async (call, callback) => {
     // find user and populate subscription
     let user = await User.findById(userId).select("proTokens freeTokens lastDailyReset")
     if (!user) throw new AppError("User not found", grpc.status.NOT_FOUND);
-    user.subscription = await Subscription.findOne({userId: userId, active: true}).select("plan endDate startDate active") 
-    callback(null, { success: true, remainingCredits: user.freeTokens + (user.proTokens || 0) });
+    user.subscription = await Subscription.findOne({userId: userId, active: true}).select("plan endDate startDate active")
     // validate subscription and get total credit
     const totalCredit = await validateSubscription(user);
     if (totalCredit < cost) {
@@ -23,7 +22,6 @@ const analyzeSubscription = CatchAsync(async (call, callback) => {
 
     // deduct credit
     deductCredit(user, cost);
-
     await user.save();
 
     callback(null, { success: true, remainingCredits: totalCredit - cost });
@@ -44,7 +42,7 @@ const validateSubscription = async (user) => {
             // User Changes
             user.proTokens = 0;
         }
-    }
+    } else user.proTokens = 0; // if no active subscription ensure proTokens is 0
 
     const todayString = new Date().toDateString(); 
     const lastResetString = user.lastDailyReset ? user.lastDailyReset.toDateString() : "";
@@ -59,13 +57,30 @@ const validateSubscription = async (user) => {
     return (user.proTokens || 0)  + user.freeTokens;
 }
 
+const refundCall = CatchAsync(async (call, callback) => {
+    const {userId, amount} = call.request;
+    if (verifyNullish(userId, amount)) throw new AppError("Missing required fields: userId and amount", grpc.status.INVALID_ARGUMENT);
+
+    await refundCredit(userId, amount);
+    callback(null, {});
+});
+
 const deductCredit = (user, cost) => {
     // deduct cost from user.free Tokens first, then from user.proTokens if freeTokens are insufficient
-    const deductProTokens =     Math.max(0, cost - user.freeTokens);
+    const deductProTokens = Math.max(0, cost - user.freeTokens);
     user.freeTokens = Math.max(0, user.freeTokens - cost);
     // Then easily deduct remaining cost from proTokens
     user.proTokens -= deductProTokens
     logger.info(`Deducted ${cost} credits from user ${user._id}. Remaining credits: ${user.freeTokens + (user.proTokens || 0)}`);
 }
 
-module.exports = {analyzeSubscription}
+const refundCredit = async (userId, amount) => {
+    const subscription = await Subscription.exists({userId: userId, active: true});
+    const change = subscription ? { proTokens: amount } : { freeTokens: amount };
+    throw new AppError("refund failed")
+    const updateResult = await User.updateOne({_id: userId}, {$inc: change});
+    if (updateResult.matchedCount === 0) throw new AppError("User not found", grpc.status.NOT_FOUND);
+};
+
+
+module.exports = {analyzeSubscription, refundCall, refundCredit}

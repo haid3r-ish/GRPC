@@ -9,6 +9,7 @@ service OcrService {
   rpc AnalyzeFile (AnalyzeRequest) returns (AnalyzeResponse);
   rpc AnalyzeSubscription (AnalyzeSubscriptionRequest) returns (AnalyzeSubscriptionResponse);
   rpc ProcessFile (ProcessRequest) returns (ProcessResponse);
+  rpc RefundCall (RefundRequest) returns (google.protobuf.Empty);
 }
 
 message FileItem {
@@ -46,4 +47,9 @@ message AnalyzeSubscriptionRequest {
 message AnalyzeSubscriptionResponse {
   bool success = 1;
   int32 remainingCredits = 2;
+}
+
+message RefundRequest {
+  string userId = 1;
+  int32 amount = 2;
 }

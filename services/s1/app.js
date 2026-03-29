@@ -7,7 +7,6 @@ const mongoose = require("mongoose")
 const color = require("@shared/utils/color");
 const {authService, userService, subscriptionService} = require("@utils/serviceObj");
 
-
 (async()=>{
   try{
     await require("@shared/utils/handler").DBconnection(mongoose,color)

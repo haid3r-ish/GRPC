@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {upload, analyzeFiles, countFiles, analyzeSubscription} = require("@middleware/fileHandle")
 const {protect, autoCleanup} = require("@middleware/protect")
+const {processFiles} = require("@controller/s2")
 
 router.use(protect);
 
@@ -18,10 +19,7 @@ router.post(
     countFiles,
     analyzeFiles,
     analyzeSubscription,
-    (req, res) => {
-        // res.json({ message: "Files analyzed successfully", files: req.files });
-        res.end("done")
-    }
+    processFiles
 );
 
 

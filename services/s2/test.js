@@ -1,63 +1,69 @@
-// s2-service/services/ocrWorker.js
-const fs = require('fs').promises;
-const axios = require('axios');
+// ocrWorker.js
 const Bottleneck = require('bottleneck');
 
-// 1. Set the absolute server limit. 
-// If this is 1, the AI will strictly process 1 image at a time, globally.
+const IMG_DIR = "./../s3/temp"
+
+// ==========================================
+// 🧪 MOCKS FOR TESTING (Replaces real DB/Network)
+// ==========================================
+const OcrBatch = {
+    updateOne: async () => { /* Fake DB update */ }
+};
+const axios = {
+    post: async () => { /* Fake SSE webhook */ }
+};
+
+// ==========================================
+// 🚀 THE CORE WORKER LOGIC
+// ==========================================
+
+// 1. Set the absolute server limit. (1 image globally)
 const imageLimiter = new Bottleneck({ 
-    maxConcurrent: 1 
+    maxConcurrent: 1
 });
 
-// 2. Wrap the SINGLE IMAGE function, not the batch!
-const extractTextFromImage = async (imagePath) => {
-    // Your heavy AI logic here
+// 2. Wrap the SINGLE IMAGE function
+const extractTextFromImage = async (batchId, imagePath) => {
+    // Added a timestamp log so you can watch the strict 2-second interval!
+    const time = new Date().toISOString().substring(11, 19);
+    console.log(`[${time}] ⚙️ AI Processing Started: ${imagePath} for batch ${batchId}`);
+    
     return new Promise(resolve => setTimeout(() => resolve("Extracted text"), 2000));
 };
 
-// This is the gatekeeper. Nothing bypasses this.
+// The gatekeeper
 const rateLimitedOcr = imageLimiter.wrap(extractTextFromImage); 
 
 // 3. The Batch Processor
-const runBottleneckProcessor = async (batchId, files) => {
-    console.log(`🚀 Queuing ${files.length} images for Batch ${batchId}...`);
 
-    // We map over the files, but they DO NOT execute immediately.
-    // They are instantly thrown into the imageLimiter queue.
-    const tasks = files.map(async (file) => {
-        try {
-            // 🚨 THE MAGIC: The code pauses right here for each file.
-            // If maxConcurrent is 1, image 2 will not move past this line until image 1 finishes.
-            const text = await rateLimitedOcr(file.path);
 
-            // DB Update for this single image
-            await OcrBatch.updateOne(
-                { _id: batchId, "images.filePath": file.path },
-                { $set: { "images.$.status": "COMPLETED", "images.$.extractedText": text } }
-            );
-
-            // Notify Gateway
-            await axios.post('http://127.0.0.1:3000/internal/sse-notify', {
-                batchId: batchId, status: 'IMAGE_COMPLETED', data: { path: file.path }
-            }).catch(() => {});
-
-        } catch (error) {
-            await OcrBatch.updateOne(
-                { _id: batchId, "images.filePath": file.path },
-                { $set: { "images.$.status": "FAILED" } }
-            );
-        } finally {
-            // Cleanup the single image
-            await fs.unlink(file.path).catch(() => {});
-        }
-    });
-
-    // This waits for the entire array to finish clearing the Bottleneck queue
-    await Promise.allSettled(tasks);
+// ==========================================
+// 🏁 THE CONCURRENCY TEST RUNNER
+// ==========================================
+// This block only runs if you execute this file directly in the terminal
+if (require.main === module) {
+    (async () => {
+        console.log("🚨 STARTING MASSIVE CONCURRENCY TEST 🚨\n");
     
-    // Notify Gateway that the whole batch is finally done
-    await axios.post('http://127.0.0.1:3000/internal/sse-notify', {
-        batchId: batchId, status: 'BATCH_COMPLETE'
-    }).catch(() => {});
-};
+        // Create 3 fake batches with different amounts of images
+        const batch1 = [{ path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-1.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-2.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-3.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-4.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-5.png` }];
+        const batch2 = [{ path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-1.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-2.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-3.png` }]; // Only 1 image
+        const batch3 = [{ path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-1.png` }];
+        const batch4 = [{ path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-1.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-2.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-3.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-4.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-5.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-6.png` }, { path: `${IMG_DIR}/Ali-Ehtisham-Resume1-page-5.png` }];
+    
+        // Fire all 3 batches at the EXACT SAME MILLISECOND
+        await Promise.all([
+            runBottleneckProcessor("BATCH_1", batch1),
+            runBottleneckProcessor("BATCH_2", batch2),
+            runBottleneckProcessor("BATCH_3", batch3)
+        ]).then(() => {
+            console.log("\n🎉 ALL BATCHES FINISHED FLAWLESSLY!");
+        });
 
+        runBottleneckProcessor("BATCH_4", batch4).then(() => {
+            console.log("\n🎉 BATCH 4 FINISHED FLAWLESSLY!");
+        });
+    })();
+}
+
+module.exports = { runBottleneckProcessor };

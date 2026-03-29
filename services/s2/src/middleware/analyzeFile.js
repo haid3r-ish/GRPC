@@ -5,7 +5,6 @@ const grpc = require("@grpc/grpc-js")
 const path = require("path");
 const util = require("util");
 const exec = util.promisify(require('child_process').exec);
-const { fromPath } = require("pdf2pic");
 
 const {CatchAsync, AppError} = require("@shared/utils/handler")
 
@@ -22,7 +21,7 @@ const analyzeFile = CatchAsync(async (call, callback) => {
     // PDF: Extract page count (upto 10 pages)
     if (files.length === 1 && files[0].mimetype === 'application/pdf') {
         // convert pdf into images and also get page Count
-        const convertedData = await pdfToImg(files[0].path); 
+        let convertedData = await pdfToImg(files[0].path); 
         totalPages = convertedData.totalPages;
         files = convertedData.files; 
         convertedData = undefined;   // free memory 

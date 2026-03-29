@@ -4,6 +4,7 @@ module.exports = (mongoose) => {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
+      index: 1
     },
     plan: {
       type: String,

@@ -1,6 +1,7 @@
 require("module-alias/register");
 
 const express = require('express');
+const passport = require('passport');
 
 const authRouter = express.Router();
 const userRouter = express.Router();
@@ -14,20 +15,29 @@ authRouter.post('/login', s1Controller.login);
 authRouter.post('/forgot-password', s1Controller.requestPasswordReset);
 authRouter.post('/reset-password', s1Controller.resetPassword);
 
+// Google OAuth Routes
+authRouter.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+authRouter.get('/google/callback', 
+    (req, res, next) => { console.log("Google OAuth callback hit"); next(); }, // Debugging middleware  
+    passport.authenticate('google', { failureRedirect: '/api/auth/login' }),
+    s1Controller.googleOAuthCallback
+);
+authRouter.get('/google/url', s1Controller.googleOAuthURL);
+
 authRouter.use(protect);
 
 authRouter.post('/logout', s1Controller.logout);
 authRouter.post('/change-password', s1Controller.changePassword);
-authRouter.get('/check', (req, res) => res.json({ ok: true, user: req.user }));
 // Subscription Route
 authRouter.post('/check-subscription', s1Controller.checkSubscription);
-authRouter.post('/cancel-subscription', s1Controller.cancelSubscription);
+authRouter.delete('/cancel-subscription', s1Controller.cancelSubscription);
 
 userRouter.use(protect);
 
-userRouter.get('/me', s1Controller.getProfile);
-userRouter.put('/profile', s1Controller.updateProfile);
-userRouter.delete('/account', s1Controller.deleteAccount);
+userRouter.route("/me")
+.get(s1Controller.getProfile)
+.put(s1Controller.updateProfile)
+.delete(s1Controller.deleteAccount);
 
 
 

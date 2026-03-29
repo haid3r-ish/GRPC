@@ -54,25 +54,27 @@ const TEST_USER = {
   // email: `test_17634@example.com`,
   // password: "password123",
   // name: "TEST USER",
-  userId: "699d19910310f8859a8daa08",
+  userId: "69be854847058229d7737f11",
   files: [
-  {
-    path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\1773826342394-new.png",
-    mimetype: "image/png",
-  },
-  {
-    path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\1773826343641-814716.png",
-    mimetype: "image/png",
-  },
-]
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_01.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_02.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_03.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_04.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_05.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_06.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_07.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_08.jpg", mimetype: "image/png" },
+    { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_09.jpg", mimetype: "image/png" },
+    // { path: "D:\\VScodium\\gRPC\\services\\s3\\temp\\output_10.jpg", mimetype: "image/png" }
+  ]
 };
 
 (async () => {
   try {
-    console.log("\n--- 1. Testing SIGNUP ---");
-    const test = await runRpc(ocr, "ProcessFile", TEST_USER);
-    console.log("✅ Test RPC Success:", test);
-    process.exit(0)
+    // console.log("\n--- 1. Testing SIGNUP ---");
+    // const test = await runRpc(ocr, "ProcessFile", TEST_USER);
+    // console.log("✅ Test RPC Success:", test);
+    // process.exit(0)
     // const signupRes = await runRpc(authClient, "Signup", TEST_USER);
     // signupRes.userData = diverge(signupRes.userData)
     // console.log("✅ Signup Success:", signupRes);
@@ -139,10 +141,118 @@ const TEST_USER = {
   } catch (error) {
     console.error("❌ TEST FAILED:", error.details || error.message);
   }
-})();
+})
 
 
 
+
+require('dotenv').config();
+const express = require('express');
+const session = require('express-session');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+
+const app = express();
+
+// ==========================================
+// 1. SESSION & PASSPORT SETUP
+// ==========================================
+// Passport requires sessions to securely handle the OAuth redirect state
+app.use(session({
+    secret: 'super_secret_key_change_in_production',
+    resave: false,
+    saveUninitialized: false
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// ==========================================
+// 2. GOOGLE STRATEGY CONFIG
+// ==========================================
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: "http://localhost:3000/auth/google/callback"
+  },
+  async (accessToken, refreshToken, profile, done) => {
+      try {
+          // 🚨 Here is where you would normally search your MongoDB
+          // e.g., let user = await User.findOne({ googleId: profile.id });
+          // If they don't exist, create them. 
+          
+          // For this simple API, we just pass the Google profile forward
+          return done(null, profile);
+      } catch (error) {
+          return done(error, null);
+      }
+  }
+));
+
+// Serialize saves the user data to the session
+passport.serializeUser((user, done) => {
+    done(null, user);
+});
+
+// Deserialize retrieves the user data from the session on future requests
+passport.deserializeUser((user, done) => {
+    done(null, user);
+});
+
+// ==========================================
+// 3. AUTH ROUTES
+// ==========================================
+// Route A: Redirects the user to the Google login screen
+app.get('/auth/google', 
+    passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+// Route B: Google sends the user back here with their data
+app.get('/auth/google/callback', 
+    passport.authenticate('google', { failureRedirect: '/api/login-failed' }),
+    (req, res) => {
+        // Successful authentication!
+        // In a full REST API, you might generate a JWT here and redirect to your frontend.
+        // For now, we just redirect to our protected profile route.
+        res.redirect('/api/profile');
+    }
+);
+
+// Route C: Logout
+app.get('/auth/logout', (req, res, next) => {
+    req.logout((err) => {
+        if (err) return next(err);
+        res.json({ message: "Successfully logged out" });
+    });
+});
+
+// ==========================================
+// 4. PROTECTED REST ENDPOINTS
+// ==========================================
+// Middleware to protect routes
+const isAuthenticated = (req, res, next) => {
+    if (req.isAuthenticated()) return next();
+    res.status(401).json({ error: "Unauthorized. Please log in." });
+};
+
+// A protected route that returns the logged-in user's JSON data
+app.get('/api/profile', isAuthenticated, (req, res) => {
+    res.json({
+        message: "You are authenticated!",
+        user: req.user
+    });
+});
+
+app.get('/api/login-failed', (req, res) => {
+    res.status(401).json({ error: "Google authentication failed." });
+});
+
+// ==========================================
+// 5. START SERVER
+// ==========================================
+app.listen(3000, () => {
+    console.log('🚀 Server is running on http://localhost:3000');
+});
 
 
 

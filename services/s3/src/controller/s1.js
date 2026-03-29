@@ -150,10 +150,51 @@ const subscriptionWebHook = CatchAsync(async (req, res) => {
     res.status(200).json({ received: true });
 });
 
+// =======================
+// GOOGLE OAUTH
+// =======================
+
+const googleOAuthCallback = CatchAsync(async (req, res) => {
+    const { googleId, email, name, profilePicture } = req.user || {};
+    
+    if (!googleId || !email) {
+        throw new AppError("Missing OAuth data", 400);
+    }
+    console.log("run")
+    const result = await callClient(s1Auth, "googleOAuthCallback", { 
+        googleId, 
+        email, 
+        name, 
+        profilePicture 
+    });
+
+    if (!result.sessionCookie) throw new AppError("OAuth login failed", 500);
+
+    res.cookie("session", result.sessionCookie, COOKIE_OPTIONS);
+
+    res.status(200).json({ 
+        user: diverge(result.userData),
+        message: "Google authentication successful"
+    });
+});
+
+const googleOAuthURL = CatchAsync(async (req, res) => {
+    // This returns the Google OAuth consent screen URL
+    // In production, this should construct the proper OAuth URL
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_CALLBACK_URL || 'http://localhost:5173/auth/google/callback';
+    const scope = encodeURIComponent('profile email');
+    
+    const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${scope}&response_type=code`;
+    
+    res.status(200).json({ url: oauthUrl });
+});
 
 module.exports = {
     // Auth
     signup, login, logout, changePassword, requestPasswordReset, resetPassword,
+    // Google OAuth
+    googleOAuthCallback, googleOAuthURL,
     // User
     getProfile, updateProfile, deleteAccount,
     // Subscription

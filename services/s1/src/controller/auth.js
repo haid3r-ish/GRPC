@@ -143,11 +143,83 @@ const logout = CatchAsync(async (call, callback) => {
     callback(null, { message: "Logged out successfully" });
 });
 
+// GOOGLE OAUTH
+const googleOAuthCallback = CatchAsync(async (call, callback) => {
+    const { googleId, email, name, profilePicture } = call.request;
+
+    if (verifyNullish(googleId, email, name)) {
+        throw new AppError("Missing OAuth data", grpc.status.INVALID_ARGUMENT);
+    }
+
+    // Check if user exists by providerId or email
+    let user = await User.findOne({ 
+        $or: [{ providerId: googleId }, { email }] 
+    });
+    let needSave = false;  
+    if (!user) {
+        // Create new user
+        user = await User.create({
+            email,
+            name,
+            provider: "google",
+            providerId: googleId,
+            profilePicture: profilePicture || null,
+            password: null // No password for OAuth users
+        });
+
+        logger.info({ userId: user._id, email }, "User Created via Google OAuth");
+    } else {
+        if (!user.providerId) {
+            user.provider = "google";
+            user.providerId = googleId;
+            if (!user.profilePicture && profilePicture) user.profilePicture = profilePicture;
+            needSave = true;
+        }
+        logger.info({ userId: user._id, email }, "User Logged In via Google OAuth");
+    }
+
+    // Create session
+    let userData = { id: user._id.toString(), email: user.email, name: user.name };
+    let sessionCookie = null;
+    let sessionToken = null;
+
+    if (!user.sessionToken) {
+        ({ sessionCookie, sessionToken } = await createSessionCookie(userData, null));
+        user.sessionToken = sessionToken;
+        needSave = true;
+    } else {
+        ({ sessionCookie } = await createSessionCookie(userData, user.sessionToken));
+    }
+
+    if (needSave) await user.save();
+    
+    const userPayload = {
+        sessionCookie,
+        userData: converge({ id: user._id, email: user.email, name: user.name, profilePicture: user.profilePicture })
+    };
+
+    callback(null, userPayload);
+});
+
+const verifyGoogleToken = CatchAsync(async (call, callback) => {
+    const { token } = call.request;
+
+    if (verifyNullish(token)) {
+        throw new AppError("Token required", grpc.status.INVALID_ARGUMENT);
+    }
+
+    // This would use google auth library to verify token
+    // For now, returning verified status
+    callback(null, { verified: true, token });
+});
+
 module.exports = {
     login,
     signup,
     resetPassword,
     requestPasswordReset,
     changePassword,
-    logout
+    logout,
+    googleOAuthCallback,
+    verifyGoogleToken
 }

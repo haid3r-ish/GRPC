@@ -20,9 +20,9 @@ const fileObj = async (files) => {
 
 const analyzeFiles = CatchAsync(async (req, res, next) => {
     req.grpcFiles = await fileObj(req.files);
-    delete req.files;
-    const analyzeResult = (await callClient(s2Client, "AnalyzeFile", { files: req.grpcFiles }));
+    const analyzeResult = await callClient(s2Client, "AnalyzeFile", { files: req.grpcFiles });
     req.totalPages = analyzeResult.totalPages;
+    delete req.files;
     // if file is pdf then assign converted files to grpcFiles for furthur processing
     if(req.grpcFiles[0].mimetype === 'application/pdf' && analyzeResult.processedFiles) req.grpcFiles = analyzeResult.processedFiles
     next();
@@ -31,9 +31,7 @@ const analyzeFiles = CatchAsync(async (req, res, next) => {
 const analyzeSubscription = CatchAsync(async (req, res, next) => {
     const {totalPages: cost, user: {id: userId}} = req;
     if(verifyNullish(cost, userId)) throw new AppError("Invalid data.", 500);
-
     const result = await callClient(s2Client, "AnalyzeSubscription", {userId, cost});
-    if(!result.success) throw new AppError("Subscription validation failed.", 403);
     // assign totalPage and remainingCredits to res 
     Object.assign(res.locals, { 
         remainingCredits: result.remainingCredits, 
@@ -44,7 +42,6 @@ const analyzeSubscription = CatchAsync(async (req, res, next) => {
 })
 
 const countFiles = CatchAsync(async (req, res, next) => {
-    console.log(s2Client)
     const result = await callClient(s2Client, "CountFiles", {});
     if (result.halt) throw new AppError("Too many files in the system. Please try again later.", 503);
     next();

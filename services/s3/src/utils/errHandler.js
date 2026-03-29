@@ -5,8 +5,6 @@ const CatchAsync = (fn) => {
     };
 }
 
-
-
 module.exports = {
     CatchAsync
 }

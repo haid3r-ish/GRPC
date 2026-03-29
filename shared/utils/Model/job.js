@@ -1,13 +1,23 @@
-const mongoose = require('mongoose');
+const { default: mongoose } = require("mongoose");
 
-const ocrBatchSchema = new mongoose.Schema({
-    userId: { type: mongoose.Schema.Types.ObjectId, required: true },
-    images: [{
-        filePath: String,
-        status: { type: String, enum: ['PENDING', 'COMPLETED', 'FAILED'], default: 'PENDING' },
-        extractedText: { type: String, default: null },
-        errorMessage: { type: String, default: null }
-    }]
-}, { timestamps: true });
-
-module.exports = mongoose.model('OcrBatch', ocrBatchSchema);
+module.exports = (mongoose) => {
+    const jobSchema = new mongoose.Schema({
+        userId: { 
+            type: mongoose.Schema.Types.ObjectId, 
+            required: true,
+            ref: 'User' // Links to your authenticated user
+        },
+        images: [{
+            filePath: String,
+            status: { type: String, enum: ['PENDING', 'COMPLETED', 'FAILED'] },
+            extractedText: String,
+            errorMessage: String
+        }],
+        createdAt: { 
+            type: Date, 
+            default: Date.now,
+            expires: 86400 // 👻 THE GHOST KILLER: MongoDB permanently deletes this doc after 24 hours
+        }
+    });
+    return jobSchema;
+}

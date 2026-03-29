@@ -8,10 +8,15 @@ const pino = require('pino');
 const pinoHttp = require('pino-http');
 const cookieParser = require("cookie-parser")
 const morgan = require('morgan');
+const passport = require('passport');
+const session = require('express-session');
 
 const {logger} = require("@util/require");
 const {authRouter, userRouter, subscriptionWebHook} = require("@route/s1Route")
 const fileRouter = require("@route/s2Route")
+
+// Initialize Passport Strategy
+require("@config/passport");
 
 const app = express();
 
@@ -45,6 +50,22 @@ app.use(cors(corsOptions));
 //     })
 //   }
 // }));
+
+// Session Configuration for Passport
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000
+  }
+}));
+
+// Initialize Passport
+app.use(passport.initialize());
+app.use(passport.session());
 
 // WEBSOCKET SETUP
 app.post('/api/auth/subscription-webhook', express.raw({type: 'application/json'}),subscriptionWebHook);

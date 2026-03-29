@@ -14,12 +14,12 @@ module.exports = (mongoose) => {
     // daily reset timestamp for subscription tokens 
     lastDailyReset: { type: Date, default: () => new Date().toDateString() },
     
-    subscription: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Subscription",
-    },
+    // subscription: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Subscription",
+    // },
     provider: { type: String, enum: ["google","facebook","github"]}, 
-    providerId: { type: String, sparse: true }, 
+    providerId: { type: String, sparse: true, unique: true }, 
     profilePicture: { type: String },
     isBlocked: { type: Boolean, default: false },
     // Password reset fields
