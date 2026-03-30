@@ -22,17 +22,19 @@ const ProcessFile = CatchAsync(async (call, callback) => {
     if (!newBatch) throw new AppError("Failed to create document batch.", 500);
     const batchId = newBatch._id.toString();
     // 2. Fire the background processor
-    runBottleneckProcessor(userId, batchId, files)
-        .catch(async (error) => {
-            console.error(`Error in Bottleneck Processor for batch ${batchId}:`, error);
-        })
-        // .finally(async () => {
-        //     if (!(files && Array.isArray(files))) return;
-        //     const deletePromises = files.map(file => 
-        //         fs.unlink(file.path).catch(() => {}) // Ignore if already deleted
-        //     );
-        //     await Promise.all(deletePromises);
-        // });
+    setImmediate(() => {
+        runBottleneckProcessor(userId, batchId, files)
+            .catch(async (error) => {
+                console.error(`Error in Bottleneck Processor for batch ${batchId}:`, error);
+            })
+            .finally(async () => {
+                if (!(files && Array.isArray(files))) return;
+                const deletePromises = files.map(file => 
+                    fs.unlink(file.path).catch(() => {}) // Ignore if already deleted
+                );
+                await Promise.all(deletePromises);
+            });
+    });
     // 3. Hand the _id back to the Gateway
     callback(null, { batchId });
 });

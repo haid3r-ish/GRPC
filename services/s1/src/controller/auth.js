@@ -6,6 +6,7 @@ const crypto = require("crypto")
 const {logger, User} = require("@utils/require")
 const {CatchAsync, AppError, verifyNullish, converge} = require("@shared/utils/handler")
 const {createSessionCookie} = require("@utils/handleJwt")
+const {sendEmail} = require("@utils/nodeMailer")
 
 const signup = CatchAsync(async (call, callback) => {
     // A. Validation
@@ -192,7 +193,7 @@ const googleOAuthCallback = CatchAsync(async (call, callback) => {
     }
 
     if (needSave) await user.save();
-    
+
     const userPayload = {
         sessionCookie,
         userData: converge({ id: user._id, email: user.email, name: user.name, profilePicture: user.profilePicture })

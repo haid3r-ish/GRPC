@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const {upload, analyzeFiles, countFiles, analyzeSubscription} = require("@middleware/fileHandle")
-const {protect, autoCleanup} = require("@middleware/protect")
+const {protect, autoCleanup, verifyInternalRequest} = require("@middleware/protect")
 const {processFiles} = require("@controller/s2")
 
 router.use(protect);
+
+const sseEvents = new EventEmitter();
 
 // request to process the files
 // first use multer middleware , with limit of 10 files
@@ -24,11 +26,36 @@ router.post(
 
 
 // sse for sending status to user when files are processed 
-router.get("/status/stream", (req, res) => {
+router.get('/stream/:batchId', (req, res) => {
+    const { batchId } = req.params;
+    
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders(); 
+
+    // The function that runs when the processor finishes
+    const onBatchComplete = (data) => {
+        res.write(`data: ${JSON.stringify(data)}\n\n`);
+        res.end(); // Close connection from the server side
+    };
+
+    const eventName = `completed_${batchId}`;
+    sseEvents.once(eventName, onBatchComplete);
+
+    req.on('close', () => {
+        sseEvents.removeListener(eventName, onBatchComplete);
+    });
 });
+
+// router to get notified task done in s2
+router.post("/internal/notify", verifyInternalRequest, (req,res) => {
+    const {batchId} = req.body;
+
+    sseEvents.emit(`completed_${batchId}`, {batchId})
+
+    res.end();
+})
 
 
 // access doc route, on first access we will delete the entry from db 

@@ -20,5 +20,7 @@ build/
 coverage/
 *.tgz
 
+services/s3/temp
+
 # service-specific
 # services/s2/

@@ -25,7 +25,12 @@ module.exports = (mongoose) => {
     // Password reset fields
     resetToken: { type: String },
     // Expiry time for reset token
-    resetTokenExpiry: { type: Date }
+    resetTokenExpiry: { type: Date },
+    isVerified: {
+    type: Boolean,
+    default: false
+    },
+    verificationToken: {type: String},
   }, {
     timestamps: true,
     toJSON: { virtuals: true },

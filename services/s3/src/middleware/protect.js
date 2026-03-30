@@ -96,4 +96,14 @@ const autoCleanup = (req, res, next) => {
     next();
 };
 
-module.exports = { protect, autoCleanup };
+// ROUTER TO VERIFY INTERNAL REQUESTS
+const verifyInternalRequest = (req, res, next) => {
+    const secret = req.headers['x-internal-secret'];
+    // Use a strong, random string stored in your .env file
+    if (secret !== process.env.INTERNAL_WEBHOOK_SECRET) {
+        return res.status(403).json({ error: "Forbidden: Internal only" });
+    }
+    next();
+};
+
+module.exports = { protect, autoCleanup, verifyInternalRequest };

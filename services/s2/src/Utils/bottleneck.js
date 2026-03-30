@@ -1,82 +1,98 @@
 require("module-alias/register");
 const fs = require('fs-extra');
 const axios = require("axios"); 
-const { EventEmitter } = require('events'); // Native Node.js event tracker
 
 const { Ocr } = require("@utils/require");
 const { refundCredit } = require("@middleware/verifyCost");
 
+const GLOBAL_S3_URL = "http://localhost:3000/api/file"
+
 // ==========================================
-// 1. GLOBAL TOKEN TRACKER (Replaces Bottleneck)
+// 1. GLOBAL TOKEN QUEUE (Semaphore Pattern)
 // ==========================================
 const MAX_CONCURRENT_IMAGES = 5; 
 let availableTokens = MAX_CONCURRENT_IMAGES;
-const tokenEvents = new EventEmitter();
+const waitingQueue = []; // Array of Promise resolve functions
 
-// This halts the loop until at least 1 token is freed up
+// Halts the loop until tokens are available and it's your turn
 const waitForTokens = async () => {
-    while (availableTokens <= 0) {
-        await new Promise(resolve => tokenEvents.once('freed', resolve));
+    // return if tokens are available and no one is waiting
+    if (availableTokens > 0 && waitingQueue.length === 0) {
+        return;
+    }
+
+    // await the promise to stop task executions until resolved
+    await new Promise(resolve => {
+        waitingQueue.push(resolve);
+    });
+};
+
+// Function to resolve the promise of next waiting task 
+const wakeUpNext = () => {
+    if (waitingQueue.length > 0 && availableTokens > 0) {
+        const nextTaskResolve = waitingQueue.shift(); // Grab the task at the front
+        nextTaskResolve(); // Wake it up
     }
 };
 
-// ==========================================
-// 2. AI CALL (Now receives an ARRAY of images!)
-// ==========================================
+// Ai call function
 const AiCall = async (batchId, filesChunk) => {
     const time = new Date().toISOString().substring(11, 19);
     console.log(`[${time}] ⚙️ AI Axios Call Started: Sending ${filesChunk.length} images for batch ${batchId}`);
     
-    // TODO: Replace this timeout with your actual Axios POST request.
-    // Make sure your backend Python/AI model is expecting an array of images!
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // TODO: Replace with actual Axios POST request
+    await new Promise(resolve => setTimeout(resolve, filesChunk.length * 2000));
     
-    // We mock the response here. Your AI must return which specific images passed/failed
-    // so we can update MongoDB and refund properly.
     return filesChunk.map(file => ({
         filePath: file.path,
-        success: true, // or false if the AI failed on this specific page
+        success: true, 
         extractedText: "Extracted text for " + file.path 
     }));
 };
 
-// ==========================================
-// 3. THE ALGORITHM
-// ==========================================
-const runBottleneckProcessor = async (userId, batchId, files) => { 
+//Main Function
+const runBottleneckProcessor = async (userId, batchId, files) => {
+    // variable for finally block to calculate refund
+    const totalImages = files.length;
+    // subtract successfull from total to get failed
+    let successfulCount = 0; 
+
     try {
-        let remainingFiles = [...files]; // Clone the array so we can slice it
+        let remainingFiles = [...files]; 
         const processingTasks = []; 
 
         while (remainingFiles.length > 0) {
-            // A. Wait for system capacity
+            // hit function to check for wait status
             await waitForTokens();
+            // safety check, if token are zero , continue wait
+            if (availableTokens <= 0) continue;
 
-            // B. Calculate how many images we can process right now
             const tokensToTake = Math.min(remainingFiles.length, availableTokens);
-            
-            // C. Instantly reserve those tokens so other requests can't steal them
             availableTokens -= tokensToTake;
 
-            // D. Slice the exact chunk off the remaining files
+            // after deducting, if token are available woke up next task to start processing
+            if (availableTokens > 0) {
+                wakeUpNext();
+            }
+
             const currentChunk = remainingFiles.splice(0, tokensToTake);
 
-            console.log(`📦 Batch ${batchId} divided: Sending chunk of ${tokensToTake} images. (${availableTokens} tokens left system-wide)`);
-
-            // E. Fire the Axios call in the background (DO NOT use 'await' here)
+            // Make chunck and store them in task array
             const chunkTask = (async () => {
                 try {
-                    // Send multiple images in ONE network call
                     const results = await AiCall(batchId, currentChunk);
 
-                    // Update MongoDB for every file in this chunk
                     const updatePromises = results.map(async (res) => {
                         if (res.success) {
                             await Ocr.updateOne(
                                 { _id: batchId, "images.filePath": res.filePath },
                                 { $set: { "images.$.status": "COMPLETED", "images.$.extractedText": res.extractedText } }
                             );
-                            return { status: 'fulfilled' }; // Helps our refund math later
+                            
+                            // 2. Safely increment our success counter!
+                            successfulCount++; 
+                            
+                            return { status: 'fulfilled' }; 
                         } else {
                             await Ocr.updateOne(
                                 { _id: batchId, "images.filePath": res.filePath },
@@ -89,9 +105,6 @@ const runBottleneckProcessor = async (userId, batchId, files) => {
                     return await Promise.allSettled(updatePromises);
 
                 } catch (error) {
-                    // If the ENTIRE Axios call crashes (e.g., 500 error from AI server)
-                    console.error(`🚨 AI Call failed for a chunk in batch ${batchId}`, error.message);
-                    
                     const failPromises = currentChunk.map(file => 
                         Ocr.updateOne(
                             { _id: batchId, "images.filePath": file.path },
@@ -99,45 +112,38 @@ const runBottleneckProcessor = async (userId, batchId, files) => {
                         )
                     );
                     await Promise.allSettled(failPromises);
-                    
-                    // Return 'rejected' for EVERY file in this chunk so the refund handles them
                     return currentChunk.map(() => ({ status: 'rejected' }));
                 } finally {
-                    // F. When the Axios call finishes, refund the tokens back to the system
                     availableTokens += tokensToTake;
-                    tokenEvents.emit('freed'); // Wake up any waiting batches!
+                    wakeUpNext(); 
                 }
             })(); 
 
-            // Add this chunk's background task to our tracker
             processingTasks.push(chunkTask);
         }
 
-        // ==========================================
-        // 4. WAIT FOR ALL CHUNKS TO FINISH & REFUND
-        // ==========================================
-        
-        // Wait until every single chunk of this batch is completely done
-        const chunkResults = await Promise.all(processingTasks);
-        
-        // chunkResults looks like this: [ [{status:'fulfilled'}, {status:'fulfilled'}], [{status:'rejected'}] ]
-        // We use .flat() to smash them into a single array of files so we can count the failures
-        const allFileResults = chunkResults.flat();
-        
-        console.log(`✅ Batch ${batchId} network processing complete.`);
+        // Wait until every single chunk is completely done
+        await Promise.all(processingTasks);
 
-        const failedCount = allFileResults.filter(r => r.status === 'rejected').length;
-
-        if (failedCount > 0) {
-            console.log(`⚠️ Batch ${batchId}: ${failedCount} images failed. Refunding user...`);
-            await refundCredit(userId, failedCount); 
-        }
         
-        console.log(`🚀 Batch ${batchId} processing finished. Notifying Express server...`);
-        // await axios.post('http://127.0.0.1:3000/internal/sse-notify', { batchId, status: 'BATCH_COMPLETE' }).catch(() => {});
 
     } catch(error) {
-        console.log("Critical Error in Bottleneck Processor:", error);
+        // If the code breaks entirely, it lands here.
+        console.error(`🔥 Critical Error in Bottleneck Processor for batch ${batchId}:`, error);
+        
+    } finally {
+        axios.post(GLOBAL_S3_URL + "/internal/notify", { batchId }, {headers: { "x-internal-secret": process.env.INTERNAL_SECRET }})
+        .catch(err => {
+            console.error(`🚨 CRITICAL: Failed to notify S3 about completion of batch ${batchId}:`, err);
+        });
+
+        const failedOrUnprocessedCount = totalImages - successfulCount;
+        
+        if (failedOrUnprocessedCount > 0) {
+            await refundCredit(userId, failedOrUnprocessedCount).catch(err => {
+                console.error(`🚨 CRITICAL: Failed to process refund for user ${userId}:`, err);
+            });
+        }        
     }   
 };
 
