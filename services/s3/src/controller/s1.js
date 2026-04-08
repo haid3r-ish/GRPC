@@ -94,9 +94,12 @@ const getProfile = CatchAsync(async (req, res) => {
     const userId = req.user.id;
 
     const result = await callClient(s1User, "GetProfile", { userId });
-    
+    const rawObj = diverge(result.userData)
     res.status(200).json({ 
-        user: { userData: diverge(result.userData) } 
+        user: {
+            ...rawObj.user,
+            ...rawObj.subscription
+        }
     });
 });
 
@@ -105,10 +108,10 @@ const updateProfile = CatchAsync(async (req, res) => {
     const { name, email } = req.body; // Allow updating name or email
 
     const result = await callClient(s1User, "UpdateProfile", { userId, name, email });
-
+    const rawObj = diverge(result.userData)
     res.status(200).json({ 
         message: "Profile Updated",
-        user: { userData: diverge(result.userData) }
+        user: { ...rawObj.user, ...rawObj.subscription }
     });
 });
 
