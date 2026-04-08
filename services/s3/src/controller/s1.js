@@ -94,9 +94,9 @@ const getProfile = CatchAsync(async (req, res) => {
     const userId = req.user.id;
 
     const result = await callClient(s1User, "GetProfile", { userId });
-
+    
     res.status(200).json({ 
-        user: { id: result.userId, name: result.name, email: result.email } 
+        user: { userData: diverge(result.userData) } 
     });
 });
 
@@ -108,7 +108,7 @@ const updateProfile = CatchAsync(async (req, res) => {
 
     res.status(200).json({ 
         message: "Profile Updated",
-        user: { id: result.userId, name: result.name, email: result.email }
+        user: { userData: diverge(result.userData) }
     });
 });
 
@@ -160,7 +160,6 @@ const googleOAuthCallback = CatchAsync(async (req, res) => {
     if (!googleId || !email) {
         throw new AppError("Missing OAuth data", 400);
     }
-    console.log("run")
     const result = await callClient(s1Auth, "googleOAuthCallback", { 
         googleId, 
         email, 
@@ -172,10 +171,7 @@ const googleOAuthCallback = CatchAsync(async (req, res) => {
 
     res.cookie("session", result.sessionCookie, COOKIE_OPTIONS);
 
-    res.status(200).json({ 
-        user: diverge(result.userData),
-        message: "Google authentication successful"
-    });
+    res.redirect("http://localhost:4200/upload"); // Redirect to frontend after successful OAuth login
 });
 
 const googleOAuthURL = CatchAsync(async (req, res) => {

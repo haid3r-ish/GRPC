@@ -1,18 +1,18 @@
 require("module-alias/register")
 
 const {User, logger, Subscription} = require("@utils/require")
-const {CatchAsync, AppError} = require("@shared/utils/handler")
+const {CatchAsync, AppError, converge} = require("@shared/utils/handler")
 
 const getProfile = CatchAsync(async(call,callback) => {
     const { userId } = call.request;
     const user = await User.findById(userId)
-                .select("name email profilePicture proTokens freeTokens lastDailyReset").lean();
+                .select("name email profilePicture proTokens freeTokens lastDailyReset")
     const subscription = await Subscription.findOne({ userId, active: true })
-                .select("plan endDate").lean();    
+                .select("plan endDate createdAt").lean();    
 
     if (!user) throw new AppError("User not found", grpc.status.NOT_FOUND)
-    console.log("Fetched user profile:", user, subscription);
-    callback(null, { userId: user._id.toString(), name: user.name, email: user.email });
+    const userData = converge({user, subscription})
+    callback(null, { userData });
 })
 
 const updateProfile = CatchAsync(async(call,callback) => {
@@ -23,8 +23,8 @@ const updateProfile = CatchAsync(async(call,callback) => {
     user.name = name || user.name;
     user.email = email || user.email;
     await user.save();
-
-    callback(null, { userId: user._id.toString(), name: user.name, email: user.email });
+    const userData = converge({user})
+    callback(null, { userData });
 })
 
 const deleteAccount = CatchAsync(async(call,callback) => {

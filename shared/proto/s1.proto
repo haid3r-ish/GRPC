@@ -85,9 +85,7 @@ message ResetPasswordResponse {
 }
 
 message UserProfileResponse {
-    string userId = 1;
-    string name = 2;
-    string email = 3;
+    string userData = 1;
 }
 
 message CheckSubscriptionRequest {

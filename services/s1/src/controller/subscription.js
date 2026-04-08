@@ -24,8 +24,8 @@ const checkSubscription = CatchAsync(async (call, callback) => {
         mode: "payment",
         line_items: [{price: pirceId, quantity: 1}],
         client_reference_id: userId,
-        success_url: `http://localhost:3000/success.html`,
-        cancel_url: `http://localhost:3000/cancel.html`,
+        success_url: `http://localhost:4200/profile?status=success`,
+        cancel_url: `http://localhost:3000/profile?status=cancelled`,
         metadata: {
             plan
         }
