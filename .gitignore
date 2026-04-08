@@ -21,6 +21,8 @@ coverage/
 *.tgz
 
 services/s3/temp
+*test.js
+test
 
 # service-specific
 # services/s2/

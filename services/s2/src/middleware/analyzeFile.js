@@ -20,7 +20,7 @@ const analyzeFile = CatchAsync(async (call, callback) => {
 
     // PDF: Extract page count (upto 10 pages)
     if (files.length === 1 && files[0].mimetype === 'application/pdf') {
-        // convert pdf into images and also get page Count
+        // convert pdf into  images and also get page Count
         let convertedData = await pdfToImg(files[0].path); 
         totalPages = convertedData.totalPages;
         files = convertedData.files; 

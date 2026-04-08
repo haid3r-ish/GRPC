@@ -66,7 +66,6 @@ const subscriptionWebHook = CatchAsync(async (call, callback) => {
         webHookPostWork(userId, planType);
     }
 
-
     callback(null, { received: true });
 })
 

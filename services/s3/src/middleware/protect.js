@@ -10,14 +10,10 @@ const { CatchAsync } = require("@util/errHandler")
 
 const protect = CatchAsync(async(req, res, next) => {
     const sessionCookie = req.cookies.session;
-    if (!sessionCookie) {
-        return next(new AppError("Not authenticated. Please login.", 401));
-    }
+    if (!sessionCookie) return next(new AppError("Not authenticated. Please login.", 401));
 
     const result = await callClient(s1Auth, "verifyUser", { sessionCookie });
-    if (!result) {
-        return next(new AppError("Invalid session", 401));
-    }
+    if (!result) return next(new AppError("Invalid session", 401));
 
     req.user = {
         id: result.userData.id,
@@ -28,8 +24,8 @@ const protect = CatchAsync(async(req, res, next) => {
     if (result.sessionCookie) {
         res.cookie("session", result.sessionCookie, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: true,
+            sameSite: 'none',
             maxAge: 24 * 60 * 60 * 1000
         });
     }

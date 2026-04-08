@@ -23,11 +23,13 @@ const app = express();
 //HELMET
 app.use(morgan('short'))
 app.use(helmet());
+app.set('trust proxy', 1);
 //CORS Configuration
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || '*', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  origin: true,
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
 };
 app.use(cors(corsOptions));
 //Rate Limiting

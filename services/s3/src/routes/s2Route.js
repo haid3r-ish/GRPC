@@ -1,8 +1,38 @@
 const express = require('express');
 const router = express.Router();
+const EventEmitter = require('events');
+
 const {upload, analyzeFiles, countFiles, analyzeSubscription} = require("@middleware/fileHandle")
 const {protect, autoCleanup, verifyInternalRequest} = require("@middleware/protect")
 const {processFiles} = require("@controller/s2")
+
+// router to get notified task done in s2
+router.post("/internal/notify", (req, res) => {
+    const { batchId } = req.body;
+    console.log(`[SSE: Notify] 📥 Received webhook from s2 for batch: ${batchId}`);
+
+    if (!batchId) {
+        console.error(`[SSE: Notify] ❌ ERROR: Missing batchId in request body`);
+        return res.status(400).json({ error: "batchId is required" });
+    }
+
+    const eventName = `completed_${batchId}`;
+    
+    // PRO DEBUG MOVE: Check if the frontend is actually still listening!
+    const listenersCount = sseEvents.listenerCount(eventName);
+    if (listenersCount === 0) {
+        console.log(`[SSE: Notify] ⚠️ WARNING: Emitting '${eventName}', but ZERO clients are listening. (Did the frontend disconnect early?)`);
+    } else {
+        console.log(`[SSE: Notify] 📢 Emitting '${eventName}' to ${listenersCount} active listener(s).`);
+    }
+
+    // Fire the event
+    sseEvents.emit(eventName, { batchId });
+
+    // Always send a proper HTTP status code instead of just res.end()
+    res.end()
+    console.log(`[SSE: Notify] 📤 Replied to s2 with 200 OK`);
+});
 
 router.use(protect);
 
@@ -27,35 +57,34 @@ router.post(
 
 // sse for sending status to user when files are processed 
 router.get('/stream/:batchId', (req, res) => {
-    const { batchId } = req.params;
+    const batchId = req.params.batchId.replace('batchId=', '');
+    console.log(`[SSE: Stream] 🟢 Client connected for batch: ${batchId}`);
     
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders(); 
+    console.log(`[SSE: Stream] 🌊 Headers sent. Stream open for ${batchId}`);
 
     // The function that runs when the processor finishes
     const onBatchComplete = (data) => {
-        res.write(`data: ${JSON.stringify(data)}\n\n`);
-        res.end(); // Close connection from the server side
+        console.log(`[SSE: Stream] ⚡ Event caught! Pushing data to client for ${batchId}`);
+        res.write(`data: ${JSON.stringify({ batchId })}\n\n`);
+        res.end() 
+        console.log(`[SSE: Stream] ✅ Connection gracefully closed by server for ${batchId}`);
     };
 
     const eventName = `completed_${batchId}`;
     sseEvents.once(eventName, onBatchComplete);
+    console.log(`[SSE: Stream] 🎧 Listening for internal event: '${eventName}'`);
 
+    // Handle client disconnecting (closing tab, network drop)
     req.on('close', () => {
+        console.log(`[SSE: Stream] 🔴 Client dropped the connection early for ${batchId}`);
         sseEvents.removeListener(eventName, onBatchComplete);
+        console.log(`[SSE: Stream] 🧹 Listener removed for '${eventName}' to prevent memory leaks`);
     });
 });
-
-// router to get notified task done in s2
-router.post("/internal/notify", verifyInternalRequest, (req,res) => {
-    const {batchId} = req.body;
-
-    sseEvents.emit(`completed_${batchId}`, {batchId})
-
-    res.end();
-})
 
 
 // access doc route, on first access we will delete the entry from db 

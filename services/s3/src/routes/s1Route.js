@@ -18,11 +18,10 @@ authRouter.post('/reset-password', s1Controller.resetPassword);
 // Google OAuth Routes
 authRouter.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 authRouter.get('/google/callback', 
-    (req, res, next) => { console.log("Google OAuth callback hit"); next(); }, // Debugging middleware  
     passport.authenticate('google', { failureRedirect: '/api/auth/login' }),
     s1Controller.googleOAuthCallback
 );
-authRouter.get('/google/url', s1Controller.googleOAuthURL);
+// authRouter.get('/google/url', s1Controller.googleOAuthURL);
 
 authRouter.use(protect);
 

@@ -77,7 +77,6 @@ const deductCredit = (user, cost) => {
 const refundCredit = async (userId, amount) => {
     const subscription = await Subscription.exists({userId: userId, active: true});
     const change = subscription ? { proTokens: amount } : { freeTokens: amount };
-    throw new AppError("refund failed")
     const updateResult = await User.updateOne({_id: userId}, {$inc: change});
     if (updateResult.matchedCount === 0) throw new AppError("User not found", grpc.status.NOT_FOUND);
 };

@@ -8,6 +8,27 @@ const {CatchAsync, AppError, verifyNullish, converge} = require("@shared/utils/h
 const {createSessionCookie} = require("@utils/handleJwt")
 const {sendEmail} = require("@utils/nodeMailer")
 
+const jwt = require('jsonwebtoken'); // Make sure to import jwt
+
+async function signupHelper(email, name, hashedPassword) {
+    const user = await User.create({ email, name, password: hashedPassword });
+    if (!user) throw new AppError("Issue in creating User", grpc.status.INTERNAL);
+        
+    logger.info({ userId: user._id, email: user.email }, "User Signed Up Successfully");
+    
+    let userData = { id: user._id.toString(), email: user.email, name: user.name };
+    const { sessionCookie, sessionToken } = await createSessionCookie(userData, null);
+    user.sessionToken = sessionToken;
+    await user.save();
+
+    const userPayload = {
+        status: "SUCCESS",
+        sessionCookie,
+        userData: converge({id: user._id, email: user.email, name: user.name})
+    };
+    return userPayload;
+}
+
 const signup = CatchAsync(async (call, callback) => {
     // A. Validation
     const { email, password, name } = call.request;
@@ -18,25 +39,77 @@ const signup = CatchAsync(async (call, callback) => {
     if (existing) throw new AppError("Email already registered", grpc.status.ALREADY_EXISTS);
 
     const hashedPassword = await bcrypt.hash(password, 12);
-    if(!hashedPassword) throw new AppError("Issue in hashing password", grpc.status.INTERNAL)
+    if (!hashedPassword) throw new AppError("Issue in hashing password", grpc.status.INTERNAL);
 
-    const user = await User.create({ email, name, password: hashedPassword });
-    if (!user) throw new AppError("Issue in creating User", grpc.status.INTERNAL);
+    // Dynamic flow based on email verification via otp
+    if (false) {
+        // 1. Generate a random 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         
-    // D. Log Success (Structured)
-    logger.info({ userId: user._id, email: user.email }, "User Signed Up Successfully");
-    // E. Session & Response
+        // 2. Hash the OTP so the frontend can't read it from the JWT
+        const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+
+        // 3. Put the user data AND the hashed OTP into the JWT
+        const pendingSignupToken = jwt.sign(
+            { email, name, password: hashedPassword, otp: hashedOtp },
+            process.env.JWT_SECRET,
+            { expiresIn: '15m' } // Token expires in 15 mins
+        );
+
+        // TODO: Email the RAW 'otp' to the user here
+        logger.info({ email, otp }, "OTP generated and mock-emailed.");
+
+        // 4. Return the JWT to the frontend so it can hold onto it
+        return callback(null, { 
+            status: "PENDING_OTP", 
+            message: "Enter the 6-digit code sent to your email.",
+            pendingToken: pendingSignupToken 
+        });
+
+    }
+    const userPayload = await signupHelper(email, name, hashedPassword);
+    return callback(null, userPayload);
+});
+
+const verifySignupOtp = CatchAsync(async (call, callback) => {
+    const { token, userOtp } = call.request;
+    if (verifyNullish(token, userOtp)) throw new AppError("Token and OTP required", grpc.status.INVALID_ARGUMENT);
+
+    // 1. Verify the JWT isn't expired or tampered with
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // 2. Hash the OTP the user just typed in
+    const hashedUserInput = crypto.createHash('sha256').update(userOtp.toString()).digest('hex');
+
+    // 3. Compare it to the hashed OTP stored inside the JWT
+    if (hashedUserInput !== decoded.otp) {
+        throw new AppError("Invalid OTP", grpc.status.UNAUTHENTICATED);
+    }
+
+    // 4. Double check the email hasn't been taken in the last 15 mins
+    const existing = await User.findOne({ email: decoded.email });
+    if (existing) throw new AppError("Email already registered", grpc.status.ALREADY_EXISTS);
+
+    // 5. SUCCESS! Save the user to the database
+    const user = await User.create({ 
+        email: decoded.email, 
+        name: decoded.name, 
+        password: decoded.password // Already hashed from Step 1!
+    });
+
+    // 6. Generate final session cookies
     let userData = { id: user._id.toString(), email: user.email, name: user.name };
     const { sessionCookie, sessionToken } = await createSessionCookie(userData, null);
     user.sessionToken = sessionToken;
     await user.save();
 
-    const userPayload = {
+    logger.info({ userId: user._id }, "User Verified OTP and Signed Up");
+
+    callback(null, {
+        status: "SUCCESS",
         sessionCookie,
         userData: converge({id: user._id, email: user.email, name: user.name})
-    }
-
-    callback(null, userPayload);
+    });
 });
 
 const login = CatchAsync(async (call, callback) => {
