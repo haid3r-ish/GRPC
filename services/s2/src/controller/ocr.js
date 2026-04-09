@@ -13,11 +13,7 @@ const ProcessFile = CatchAsync(async (call, callback) => {
     
     // 1. Create the document. MongoDB instantly generates the _id.
     const newBatch = await Ocr.create({
-        userId: userId,
-        images: files.map(file => ({
-            filePath: file.path,
-            status: 'PENDING'
-        }))
+        userId: userId
     });
     if (!newBatch) throw new AppError("Failed to create document batch.", 500);
     const batchId = newBatch._id.toString();

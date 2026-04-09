@@ -82,4 +82,14 @@ const refundCredit = async (userId, amount) => {
 };
 
 
+// (async () => {
+//     try {
+//         // await Ocr.deleteMany({ userId: "69cd28281fb0ad2f3ad613d3" });
+//         const result = await User.find({ email: "ali@test.com" });
+//         console.log(result);
+//     } catch (error) {
+//         console.log(error);
+//     }
+// })();
+
 module.exports = {analyzeSubscription, refundCall, refundCredit}

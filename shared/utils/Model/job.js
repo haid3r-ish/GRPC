@@ -1,4 +1,3 @@
-const { default: mongoose } = require("mongoose");
 
 module.exports = (mongoose) => {
     const jobSchema = new mongoose.Schema({
@@ -7,11 +6,10 @@ module.exports = (mongoose) => {
             required: true,
             ref: 'User' // Links to your authenticated user
         },
-        images: [{
+        data: [{
             filePath: String,
-            status: { type: String, enum: ['PENDING', 'COMPLETED', 'FAILED'] },
-            extractedText: String,
-            errorMessage: String
+            status: {type: String, enum: ["FAILED", "COMPLETED"]},
+            extractedText: String
         }],
         createdAt: { 
             type: Date, 
