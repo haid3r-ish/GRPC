@@ -10,7 +10,7 @@ const {CatchAsync, AppError} = require("@shared/utils/handler")
 
 const MAX_FILES_STORED = 50; // Max files to store for analysis
 const DIR_PATH = path.dirname(require.resolve("@s3")) + "\\temp"; // Directory to store uploaded files for analysis
-
+console.log("DIR_PATH: ", DIR_PATH)
 const analyzeFile = CatchAsync(async (call, callback) => {
     let { files } = call.request;
     // total pages in current request
@@ -50,7 +50,6 @@ const countFiles = CatchAsync(async (call, callback) => {
 })
 
 async function pdfToImg(pdfPath) {
-    const ghostSciprtPath = "C:\\Program Files\\gs\\gs10.06.0\\bin\\gs.exe";
     // Pdf path
     const dirPath = path.dirname(pdfPath);
     const baseName = path.basename(pdfPath, path.extname(pdfPath))
@@ -58,7 +57,7 @@ async function pdfToImg(pdfPath) {
     const outputPattern = path.join(dirPath, `${baseName}-page-%d.png`);
 
     // command for ghostscript to convert pdf to png
-    const gsCommand = `"${ghostSciprtPath}" -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -r300 -sOutputFile="${outputPattern}" "${pdfPath}"`;
+    const gsCommand = `"$${process.env.GHOSTSCRIPT_PATH || "gs"}" -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -r300 -sOutputFile="${outputPattern}" "${pdfPath}"`;
 
     const { stdout } = await exec(gsCommand);
     const totalPages = [...stdout.matchAll(/Page (\d+)/g)].length;

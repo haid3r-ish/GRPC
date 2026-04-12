@@ -7,7 +7,7 @@ module.exports = (mongoose) => {
             ref: 'User' // Links to your authenticated user
         },
         data: [{
-            filePath: String,
+            fileName: String,
             status: {type: String, enum: ["FAILED", "COMPLETED"]},
             extractedText: String
         }],
@@ -15,7 +15,8 @@ module.exports = (mongoose) => {
             type: Date, 
             default: Date.now,
             expires: 86400 // 👻 THE GHOST KILLER: MongoDB permanently deletes this doc after 24 hours
-        }
+        },
+        fetched: {type: Boolean, default: false}
     });
     return jobSchema;
 }

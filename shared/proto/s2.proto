@@ -10,6 +10,8 @@ service OcrService {
   rpc AnalyzeSubscription (AnalyzeSubscriptionRequest) returns (AnalyzeSubscriptionResponse);
   rpc ProcessFile (ProcessRequest) returns (ProcessResponse);
   rpc RefundCall (RefundRequest) returns (google.protobuf.Empty);
+  rpc GetDoc (GetDocRequest) returns (GetDocResponse);
+  rpc GetAllDocs (GetAllDocsRequest) returns (GetAllDocsResponse);
 }
 
 message FileItem {
@@ -52,4 +54,21 @@ message AnalyzeSubscriptionResponse {
 message RefundRequest {
   string userId = 1;
   int32 amount = 2;
+}
+
+message GetDocRequest {
+  string batchId = 1;
+  string userId = 2;
+}
+
+message GetDocResponse {
+  string docData = 1;
+}
+
+message GetAllDocsRequest {
+  string userId = 1;
+}
+
+message GetAllDocsResponse {
+  string docsData = 1; 
 }

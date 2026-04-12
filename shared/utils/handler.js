@@ -1,3 +1,4 @@
+// require("dotenv").config()
 const cleanStack = require("clean-stack")
 
 const color = require("@shared/utils/color")
@@ -83,7 +84,7 @@ function pinoInstance(pino, dstPath){
 
 //// DATABASE CONNECTION ////
 async function DBconnection({connect, connection}){
-    await connect("mongodb://localhost:27017/fyp")
+    await connect(`mongodb+srv://natour:natourpass@cluster0.xh03m6l.mongodb.net/fyp`)
         .then(()=> color.success("Database connected Successfully!"))
         .catch((err) => color.err(err))
 }
