@@ -1,15 +1,17 @@
 require("module-alias/register");
 
+const axios = require("axios");
+
 const { CatchAsync } = require("@util/errHandler")
 const { callClient } = require("@util/mwareUtil");
 const {s2Client} = require("@util/require");
-const {AppError, diverge} = require("@shared/utils/handler")
-
-// const CLIENT_IMAGE_PATH = ""
+const {AppError, diverge, verifyNullish} = require("@shared/utils/handler")
 
 const processFiles = CatchAsync(async (req, res) => {
     try {
         const userId = req.user.id; 
+        if(verifyNullish(userId)) throw new AppError("User ID is missing in the request.", 400);
+
         const grpcResponse = await callClient(s2Client, "ProcessFile", {
             userId: userId,
             files: req.grpcFiles
@@ -36,7 +38,7 @@ const processFiles = CatchAsync(async (req, res) => {
 const getDoc = CatchAsync(async (req, res) => {
     const batchId = req.params.batchId;
     const userId = req.user.id;
-
+    if(verifyNullish(batchId, userId)) throw new AppError("Batch ID and User ID are required.", 400);
     let doc = await callClient(s2Client, "GetDoc", { batchId, userId });
     if (!doc) throw new AppError("Document not found or already accessed.", 404);
 
@@ -55,6 +57,7 @@ const getDoc = CatchAsync(async (req, res) => {
 
 const getAllDocs = CatchAsync(async (req, res) => {
     const userId = req.user.id;
+    if(verifyNullish(userId)) throw new AppError("User ID is missing in the request.", 400);
 
     const rawResponse = await callClient(s2Client, "GetAllDocs", { userId });
 
@@ -75,5 +78,30 @@ const getAllDocs = CatchAsync(async (req, res) => {
     });
 });
 
+const getHistory = CatchAsync(async (req, res) => {
+    const userId = req.user.id;
+    if(verifyNullish(userId)) throw new AppError("User ID is missing in the request.", 400);
 
-module.exports = {processFiles, getDoc, getAllDocs};
+
+    let docs = await callClient(s2Client, "GetHistory", { userId });
+
+    if (!docs) throw new AppError("No documents found for this user.", 404);
+    docs = diverge(docs.docsData);
+    res.status(200).json({
+        status: "success",
+        data: docs
+    });
+});
+
+const checkRangharHealth = CatchAsync(async (req, res) => {
+    const serverUrl = "https://fifty-turtles-attack.loca.lt"
+    console.log(`Checking health of Ranghar API at ${serverUrl}...`);
+    const resp = await axios.get(`${serverUrl}/health`);
+    console.log("Ranghar API health check response:", resp);
+    // if (resp.status === 200) console.log("Ranghar API is healthy");
+
+    res.send("done")
+
+});
+
+module.exports = {processFiles, getDoc, getAllDocs, getHistory, checkRangharHealth};

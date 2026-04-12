@@ -4,7 +4,7 @@ const EventEmitter = require('events');
 
 const {upload, analyzeFiles, countFiles, analyzeSubscription} = require("@middleware/fileHandle")
 const {protect, autoCleanup, verifyInternalRequest} = require("@middleware/protect")
-const {processFiles, getDoc, getAllDocs} = require("@controller/s2")
+const {processFiles, getDoc, getAllDocs, getHistory, checkRangharHealth} = require("@controller/s2")
 
 
 // router to get notified task done in s2
@@ -70,6 +70,8 @@ router.get('/stream/:batchId', (req, res) => {
 });
 
 // access doc route, on first access we will delete the entry from db 
+// router.get('/health', checkRangharHealth);
+router.get('/history', getHistory);
 router.get('/:batchId', getDoc);
 router.get('/', getAllDocs);
 module.exports = router;

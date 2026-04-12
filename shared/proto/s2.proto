@@ -12,6 +12,7 @@ service OcrService {
   rpc RefundCall (RefundRequest) returns (google.protobuf.Empty);
   rpc GetDoc (GetDocRequest) returns (GetDocResponse);
   rpc GetAllDocs (GetAllDocsRequest) returns (GetAllDocsResponse);
+  rpc GetHistory (GetHistoryRequest) returns (GetHistoryResponse);
 }
 
 message FileItem {
@@ -33,12 +34,12 @@ message AnalyzeResponse {
 }
 
 message ProcessRequest { 
-  string userId = 1;           // Added: So S2 can link the DB record
+  string userId = 1;     
   repeated FileItem files = 2; 
 }
 
 message ProcessResponse { 
-  string batchId = 1;          // Added: S2 returns the MongoDB _id
+  string batchId = 1;      
 }
 
 message AnalyzeSubscriptionRequest {
@@ -71,4 +72,12 @@ message GetAllDocsRequest {
 
 message GetAllDocsResponse {
   string docsData = 1; 
+}
+
+message GetHistoryRequest {
+  string userId = 1;
+}
+
+message GetHistoryResponse {
+  string docsData = 1;
 }

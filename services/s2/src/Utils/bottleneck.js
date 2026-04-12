@@ -311,7 +311,7 @@ const AiCall = async (batchId, filesChunk) => {
             const fileStream = fs.createReadStream(fileObj.path);
             formData.append('files', fileStream, path.basename(fileObj.path));
         }
-
+        console.log("SEnding response to ", process.env.RANGHAR_API_URL)
         let response = await axios.post(
             `${process.env.RANGHAR_API_URL}/process-pages`,
             formData,
@@ -322,7 +322,6 @@ const AiCall = async (batchId, filesChunk) => {
                 maxBodyLength: Infinity
             }
         );
-        
         let returningObj = [];
         const pages = response.data.pages_numbered;
         response = null; 

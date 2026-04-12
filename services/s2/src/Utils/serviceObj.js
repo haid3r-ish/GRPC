@@ -2,7 +2,7 @@ require("module-alias/register");
 
 const {analyzeFile, countFiles} = require("@middleware/analyzeFile");
 const {analyzeSubscription, refundCall} = require("@middleware/verifyCost");
-const {ProcessFile, GetDoc, GetAllDocs} = require("@controller/ocr")
+const {ProcessFile, GetDoc, GetAllDocs, GetHistory} = require("@controller/ocr")
 
 module.exports = {
     analyzeFile,
@@ -11,5 +11,6 @@ module.exports = {
     ProcessFile,
     refundCall,
     GetDoc,
-    GetAllDocs
+    GetAllDocs,
+    GetHistory
 }

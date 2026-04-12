@@ -108,4 +108,28 @@ const GetAllDocs = CatchAsync(async (call, callback) => {
     });
 });
 
-module.exports = { ProcessFile, GetDoc, GetAllDocs };
+const GetHistory = CatchAsync(async (call, callback) => {
+    const {userId} = call.request;
+    
+    const docs = await Ocr.find({userId: userId}).sort({createdAt: -1});
+    if(!docs) throw new AppError("No documents found for this user.", 404);
+
+    const formattedDocs = docs.map(doc => {
+            return {
+                batchId: doc._id.toString(),
+                createdAt: doc.createdAt,
+                isFetched: doc.fetched ? "Fetched (files already retrieved and deleted)" : "Not fetched (files still available for download)",
+                files: doc.data.map(item => {
+                    if (item.fileName) return item.fileName.split("-").slice(1).join("-");
+                    return "unknown_file";
+                })
+            };
+        }
+    );
+    
+    callback(null, {
+        docsData: converge(formattedDocs)
+    });
+});
+
+module.exports = { ProcessFile, GetDoc, GetAllDocs, GetHistory };
