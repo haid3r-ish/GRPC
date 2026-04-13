@@ -88,7 +88,7 @@ app.all("*splash", async (req,res) => {
 // Centralized Error Handling
 app.use((err, req, res, next) => {
   const log = req.log || logger;
-    console.log(err)
+    console.log("GER: ",err)
   // log.error({ 
   //   err: {
   //     message: err.message,

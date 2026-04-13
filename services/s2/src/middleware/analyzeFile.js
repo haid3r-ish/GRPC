@@ -57,7 +57,7 @@ async function pdfToImg(pdfPath) {
     const outputPattern = path.join(dirPath, `${baseName}-page-%d.png`);
 
     // command for ghostscript to convert pdf to png
-    const gsCommand = `"$${process.env.GHOSTSCRIPT_PATH || "gs"}" -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -r300 -sOutputFile="${outputPattern}" "${pdfPath}"`;
+    const gsCommand = `"${process.env.GHOSTSCRIPT_PATH || "gs"}" -dSAFER -dBATCH -dNOPAUSE -sDEVICE=png16m -r300 -sOutputFile="${outputPattern}" "${pdfPath}"`;
 
     const { stdout } = await exec(gsCommand);
     const totalPages = [...stdout.matchAll(/Page (\d+)/g)].length;

@@ -55,7 +55,7 @@ router.get('/stream/:batchId', (req, res) => {
     res.flushHeaders(); 
 
     // The function that runs when the processor finishes
-    const onBatchComplete = (data) => {
+    const onBatchComplete = () => {
         res.write(`data: ${JSON.stringify({ batchId })}\n\n`);
         res.end() 
     };

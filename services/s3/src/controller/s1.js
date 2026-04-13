@@ -174,7 +174,7 @@ const googleOAuthCallback = CatchAsync(async (req, res) => {
 
     res.cookie("session", result.sessionCookie, COOKIE_OPTIONS);
 
-    res.redirect("http://localhost:4200/upload"); // Redirect to frontend after successful OAuth login
+    res.redirect(`${process.env.OAUTH_REDIRECT_URL}/upload`); // Redirect to frontend after successful OAuth login
 });
 
 const googleOAuthURL = CatchAsync(async (req, res) => {

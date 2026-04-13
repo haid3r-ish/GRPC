@@ -49,33 +49,16 @@ const GetDoc = CatchAsync(async (call, callback) => {
     );
 
     if (!doc) throw new AppError("Document not found or already accessed.", 404);
+    
     const isFirstFetch = !doc.fetched;
-    const formattedData = [];
 
-    for (const item of doc.data) {
-        let base64Image = null;
-
-        if (isFirstFetch && item.status === "COMPLETED" && item.fileName) {
-            const fullPath = path.join(OUTPUT_FILE_TARGET_PATH, item.fileName);
-
-            try {
-                const fileBuffer = await fs.readFile(fullPath);
-                base64Image = `data:image/png;base64,${fileBuffer.toString('base64')}`;
-
-                await fs.unlink(fullPath);
-                console.log(`🗑️ First Fetch: Deleted local file ${item.fileName}`);
-            } catch (err) {
-                console.error(`🚨 Failed to read/delete file ${item.fileName}:`, err.message);
-            }
-        }
-
-        formattedData.push({
+    const formattedData = doc.data.map(item => {
+        return {
             status: item.status,
-            fileName: item.fileName.split("-").slice(1).join("-"), 
-            extractedText: item.extractedText,
-            imageSrc: base64Image 
-        });
-    }
+            fileName: item.fileName, 
+            extractedText: item.extractedText
+        };
+    });
 
     callback(null, {docData: converge({
         batchId: doc._id.toString(),
@@ -126,7 +109,7 @@ const GetHistory = CatchAsync(async (call, callback) => {
             };
         }
     );
-    
+
     callback(null, {
         docsData: converge(formattedDocs)
     });

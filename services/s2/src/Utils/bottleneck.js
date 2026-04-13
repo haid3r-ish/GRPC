@@ -308,10 +308,16 @@ const AiCall = async (batchId, filesChunk) => {
     try {
         const formData = new FormData();
         for (const fileObj of filesChunk) {
-            const fileStream = fs.createReadStream(fileObj.path);
-            formData.append('files', fileStream, path.basename(fileObj.path));
+            try {
+                await fs.access(fileObj.path);
+            } catch (error) {
+                console.log("AI INSIDE ERROR: ", error)
+                throw error;
+            }
+            const fileBuffer = await fs.readFile(fileObj.path);
+            formData.append('files', fileBuffer, path.basename(fileObj.path));
         }
-        console.log("SEnding response to ", process.env.RANGHAR_API_URL)
+
         let response = await axios.post(
             `${process.env.RANGHAR_API_URL}/process-pages`,
             formData,
@@ -341,7 +347,7 @@ const AiCall = async (batchId, filesChunk) => {
                 
                 returningObj.push({
                     success: true,
-                    fileName: pageData.source_filename, // ✅ Only storing the filename
+                    fileName: pageData.source_filename, 
                     extractedText: pageData.text || null
                 });
                 
@@ -349,7 +355,7 @@ const AiCall = async (batchId, filesChunk) => {
                 console.warn(`⚠️ Error processing ${pageData.source_filename || pageName}:`, error.message);
                 returningObj.push({
                     success: false,
-                    fileName: pageData.source_filename || "unknown_file", // ✅ Only storing the filename
+                    fileName: pageData.source_filename || "unknown_file", 
                     extractedText: pageData.text || (error.message || String(error))
                 });
             }
@@ -358,6 +364,7 @@ const AiCall = async (batchId, filesChunk) => {
         return returningObj;
         
     } catch (error) {
+        console.log(error)
         console.error(`🔥 AiCall Request Error:`, error.message);
         throw error;
     }

@@ -1,11 +1,15 @@
 require("module-alias/register");
 
 const axios = require("axios");
+const path = require("path");
+const fs = require("fs").promises;
 
 const { CatchAsync } = require("@util/errHandler")
 const { callClient } = require("@util/mwareUtil");
 const {s2Client} = require("@util/require");
 const {AppError, diverge, verifyNullish} = require("@shared/utils/handler")
+
+const OUTPUT_FILE_TARGET_PATH = path.join(__dirname, "../../temp/output_files/");
 
 const processFiles = CatchAsync(async (req, res) => {
     try {
@@ -35,24 +39,76 @@ const processFiles = CatchAsync(async (req, res) => {
     }
 });
 
+// const getDoc = CatchAsync(async (req, res) => {
+//     const batchId = req.params.batchId;
+//     const userId = req.user.id;
+//     if(verifyNullish(batchId, userId)) throw new AppError("Batch ID and User ID are required.", 400);
+//     let doc = await callClient(s2Client, "GetDoc", { batchId, userId });
+//     if (!doc) throw new AppError("Document not found or already accessed.", 404);
+
+//     doc = JSON.parse(doc.docData); // Convert string back to object if needed
+
+//     res.status(200).json({
+//         status: "success",
+//         message: doc.isFirstFetch 
+//             ? "First fetch complete. Images cleared from server." 
+//             : "Fetched from history. Images no longer available.",
+//         isFirstFetch: doc.isFirstFetch,
+//         data: doc.data 
+//     });
+
+// });
+
 const getDoc = CatchAsync(async (req, res) => {
     const batchId = req.params.batchId;
     const userId = req.user.id;
     if(verifyNullish(batchId, userId)) throw new AppError("Batch ID and User ID are required.", 400);
-    let doc = await callClient(s2Client, "GetDoc", { batchId, userId });
-    if (!doc) throw new AppError("Document not found or already accessed.", 404);
 
-    doc = JSON.parse(doc.docData); // Convert string back to object if needed
+    const rawResponse = await callClient(s2Client, "GetDoc", { batchId, userId });
+    if (!rawResponse || !rawResponse.docData) {
+        throw new AppError("Document not found", 404);
+    }
+    
+    const parsedDoc = diverge(rawResponse.docData);
+    const finalData = [];
+
+    for (const item of parsedDoc.data) {
+        let base64Image = null;
+
+        if (parsedDoc.isFirstFetch && item.status === "COMPLETED" && item.fileName) {
+            const fullPath = path.join(OUTPUT_FILE_TARGET_PATH, item.fileName);
+
+            try {
+                const fileBuffer = await fs.readFile(fullPath);
+                base64Image = `data:image/png;base64,${fileBuffer.toString('base64')}`;
+
+                // Express deletes the file
+                await fs.unlink(fullPath);
+                console.log(`🗑️ Express deleted local file: ${item.fileName}`);
+            } catch (err) {
+                console.error(`🚨 Express failed to read/delete file ${item.fileName}:`, err.message);
+            }
+        }
+
+        finalData.push({
+            status: item.status,
+            fileName: item.fileName ? item.fileName.split("-").slice(1).join("-") : null, 
+            extractedText: item.extractedText || "No text extracted",
+            imageSrc: base64Image || null
+        });
+    }
 
     res.status(200).json({
         status: "success",
-        message: doc.isFirstFetch 
+        message: parsedDoc.isFirstFetch 
             ? "First fetch complete. Images cleared from server." 
-            : "Fetched from history. Images no longer available.",
-        isFirstFetch: doc.isFirstFetch,
-        data: doc.data 
+            : "Fetched from history.",
+        data: {
+            batchId: parsedDoc.batchId,
+            isFirstFetch: parsedDoc.isFirstFetch,
+            results: finalData
+        }
     });
-
 });
 
 const getAllDocs = CatchAsync(async (req, res) => {
