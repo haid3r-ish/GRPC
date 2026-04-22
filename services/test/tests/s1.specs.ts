@@ -1,6 +1,5 @@
 import { test, expect } from '@playwright/test';
 
-// Use a dynamic test user to avoid database collisions on multiple runs
 const testUser = {
   name: 'Test User',
   email: `testuser_${Date.now()}@example.com`,
@@ -12,7 +11,6 @@ let resetToken = '';
 
 test.describe.serial('S1 API Authentication & User Routes', () => {
   
-  // Base URL setup - adjust this to match your local/CI environment
   test.use({ baseURL: 'http://localhost:3000/api' });
 
   test.describe('Public Auth Routes', () => {
@@ -59,7 +57,7 @@ test.describe.serial('S1 API Authentication & User Routes', () => {
       expect(response.status()).toBe(200);
       const body = await response.json();
       expect(body).toHaveProperty('resetToken');
-      resetToken = body.resetToken; // Save for the next test
+      resetToken = body.resetToken; // Save for furthur test
     });
 
     test('POST /reset-password - Should reset password with valid token', async ({ request }) => {
@@ -77,7 +75,7 @@ test.describe.serial('S1 API Authentication & User Routes', () => {
   test.describe('Protected User Routes', () => {
     
     test.beforeAll(async ({ request }) => {
-      // Re-authenticate with the NEW password to ensure session is valid
+      // Re-authenticate with the NEW password
       await request.post('/login', {
         data: { email: testUser.email, password: testUser.newPassword }
       });
@@ -111,7 +109,7 @@ test.describe.serial('S1 API Authentication & User Routes', () => {
       const response = await request.post('/change-password', {
         data: {
           oldPassword: testUser.newPassword,
-          newPassword: testUser.password // Switch it back
+          newPassword: testUser.password 
         }
       });
       
@@ -138,7 +136,7 @@ test.describe.serial('S1 API Authentication & User Routes', () => {
       const response = await request.delete('/me');
       expect(response.status()).toBe(200);
       
-      // Verify account is gone by trying to access /me
+      // Verify account is gone
       const checkResponse = await request.get('/me');
       expect(checkResponse.status()).toBe(401);
     });
@@ -147,7 +145,6 @@ test.describe.serial('S1 API Authentication & User Routes', () => {
   test.describe('OAuth & Webhooks', () => {
     
     test('GET /google - Should redirect to Google consent screen', async ({ request }) => {
-      // Set maxRedirects to 0 to capture the 302 instead of actually hitting Google
       const response = await request.get('/google', { maxRedirects: 0 });
       expect(response.status()).toBe(302);
       expect(response.headers()['location']).toContain('accounts.google.com');
@@ -158,7 +155,6 @@ test.describe.serial('S1 API Authentication & User Routes', () => {
         data: { id: 'evt_test_123', type: 'checkout.session.completed' }
       });
       
-      // Should fail because we didn't provide a valid stripe-signature header
       expect(response.status()).toBe(400);
     });
   });
